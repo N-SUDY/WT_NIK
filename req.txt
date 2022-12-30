@@ -1,0 +1,11 @@
+Pyrogram
+TgCrypto
+hachoir
+Pillow
+humanfriendly
+motor
+aiofiles
+aiohttp
+dnspython
+psutil
+python-dotenv==0.21.0
