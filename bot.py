@@ -17,19 +17,28 @@ from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQ
 from pyrogram.errors.exceptions.flood_420 import FloodWait
 from pyrogram.errors.exceptions.bad_request_400 import MessageNotModified
 
-AHBot = Client(
-        name = "WatermarkBOT",
-        session_string = Config.Session_String,
-        api_id = Config.API_ID,
-        api_hash = Config.API_HASH
-    )
+
+
+USER = Client(
+			name = "WatermarkBOT",
+			session_string = Config.Session_String,
+			api_id = Config.API_ID,
+			api_hash = Config.API_HASH
+		)
+USER.start()
+x = USER.get_me()
+uid = x.id
+
+AHBot = Client("WT", bot_token=Config.BOT_TOKEN, api_id=Config.API_ID, api_hash=Config.API_HASH)
+
+
 
 
 
 
 async def _check_user(filt, c, m):
     chat_id = m.chat.id
-    if chat_id==Config.GROUP_ID:
+    if chat_id==Config.GROUP_ID and m.from_user.id!=uid:
         return True
     else :
         return False
@@ -95,11 +104,7 @@ async def SettingsBot(_, cmd):
 				else:
 					size_tag = "7%"
 				## --- Next --- ##
-				await cmd.reply_text(
-					text="Here you can set your Watermark Settings:",
-					disable_web_page_preview=True,
-					reply_markup=InlineKeyboardMarkup(
-						[
+				BUTTONS =[
 							[InlineKeyboardButton(f"Watermark Position - {position_tag}", callback_data="lol")],
 							[InlineKeyboardButton("Set Top Left", callback_data=f"position_5:5"), InlineKeyboardButton("Set Top Right", callback_data=f"position_main_w-overlay_w-5:5")],
 							[InlineKeyboardButton("Set Bottom Left", callback_data=f"position_5:main_h-overlay_h"), InlineKeyboardButton("Set Bottom Right", callback_data=f"position_main_w-overlay_w-5:main_h-overlay_h-5")],
@@ -108,8 +113,13 @@ async def SettingsBot(_, cmd):
 							[InlineKeyboardButton("25%", callback_data=f"size_25"), InlineKeyboardButton("30%", callback_data=f"size_30"), InlineKeyboardButton("35%", callback_data=f"size_30"), InlineKeyboardButton("40%", callback_data=f"size_40"), InlineKeyboardButton("45%", callback_data=f"size_45")],
 							[InlineKeyboardButton(f"Reset Settings To Default", callback_data="reset")]
 						]
+				print(BUTTONS)
+				await cmd.reply_text(
+					text="Here you can set your Watermark Settings:",
+					disable_web_page_preview=True,
+					reply_markup= InlineKeyboardMarkup(BUTTONS)
 					)
-				)
+
 
 
 @AHBot.on_message((filters.document | filters.video | filters.photo)  & check_user)
@@ -160,8 +170,9 @@ async def VidWatermarkAdder(bot, cmd):
 	the_media = None
 	try:
 		c_time = time.time()
-		the_media = await bot.download_media(
-			message=cmd,
+		m = await USER.get_messages(cmd.chat.id, cmd.id, replies=0)
+		the_media = await USER.download_media(
+			message=m,
 			file_name=dl_loc,
 			progress=progress_for_pyrogram,
 			progress_args=(
@@ -264,12 +275,12 @@ async def VidWatermarkAdder(bot, cmd):
 		await delete_all()
 		return
 	try:
-		await send_video_handler(bot, cmd, output_vid, video_thumbnail, duration, width, height, editable, file_size)
+		await send_video_handler(USER, cmd, output_vid, video_thumbnail, duration, width, height, editable, file_size)
 	except FloodWait as e:
 		print(f"Got FloodWait of {e.x}s ...")
 		await asyncio.sleep(e.x)
 		await asyncio.sleep(5)
-		await send_video_handler(bot, cmd, output_vid, video_thumbnail, duration, width, height, editable, file_size)
+		await send_video_handler(USER, cmd, output_vid, video_thumbnail, duration, width, height, editable, file_size)
 	except Exception as err:
 		print(f"Unable to Upload Video: {err}")
 		await editable.edit(f"❗ERROR: Unable to Upload Video!\n\n**Error:** `{err}`")
@@ -400,4 +411,5 @@ async def button(bot, cmd: CallbackQuery):
 		await cmd.answer("Settings Reseted Successfully!", show_alert=True)
 
 
+print(f"⚡Bot By Sahil Nolia⚡")
 AHBot.run()
