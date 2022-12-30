@@ -13,7 +13,7 @@ async def send_video_handler(bot, cmd, output_vid, video_thumbnail, duration, wi
         duration=duration,
         width=width,
         height=height,
-        reply_to_message_id=cmd.message_id,
+        reply_to_message_id=cmd.id,
         supports_streaming=True,
         progress=progress_for_pyrogram,
         progress_args=(

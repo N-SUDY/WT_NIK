@@ -3,4 +3,4 @@
 from configs import Config
 from core.database import Database
 
-db = Database("Nik66bots", Config.BOT_USERNAME)
+db = Database(Config.DATABASE_URL, "Nik66bots")
