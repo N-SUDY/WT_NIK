@@ -35,11 +35,10 @@ async def progress_for_pyrogram(current, total, ud_type, message: Message, start
                 text="**{}**\n\n {}".format(
                     ud_type,
                     tmp
-                ),
-                parse_mode='markdown'
+                )
             )
-        except:
-            pass
+        except Exception as e:
+            print(e)
 
 
 def humanbytes(size):

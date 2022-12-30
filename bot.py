@@ -157,7 +157,7 @@ async def VidWatermarkAdder(bot, cmd):
 		await cmd.reply_text("Sorry, Currently I am busy with another Task!\n\nTry Again After Sometime!")
 		return
 	preset = Config.PRESET
-	editable = await cmd.reply_text("🔽Downloading Video.")
+	editable = await cmd.reply_text("⌛Downloading Video With User Account.")
 	with open(status, "w") as f:
 		statusMsg = {
 			'chat_id': cmd.from_user.id,
@@ -171,13 +171,15 @@ async def VidWatermarkAdder(bot, cmd):
 	try:
 		c_time = time.time()
 		m = await USER.get_messages(cmd.chat.id, cmd.id, replies=0)
+		dw = await USER.send_message(chat_id=cmd.chat.id,
+                                text=f"🔽Downloading Video.")
 		the_media = await USER.download_media(
 			message=m,
 			file_name=dl_loc,
 			progress=progress_for_pyrogram,
 			progress_args=(
 				"🔽Downloading Video.",
-				editable,
+				dw,
 				c_time
 			)
 		)
@@ -185,6 +187,7 @@ async def VidWatermarkAdder(bot, cmd):
 			await delete_trash(status)
 			await delete_trash(the_media)
 			print(f"❌Download Failed")
+			await dw.delete()
 			await editable.edit("❗Unable to Download The Video!")
 			return
 	except Exception as err:
@@ -192,7 +195,9 @@ async def VidWatermarkAdder(bot, cmd):
 		await delete_trash(the_media)
 		print(f"❌Download Failed: {err}")
 		await editable.edit("❗Unable to Download The Video!")
+		await dw.delete()
 		return
+	await dw.delete()
 	watermark_position = await db.get_position(cmd.from_user.id)
 	if watermark_position == "5:main_h-overlay_h":
 		position_tag = "Bottom Left"
@@ -227,7 +232,7 @@ async def VidWatermarkAdder(bot, cmd):
 		await editable.edit("❗Something went wrong!")
 		await delete_all()
 		return
-	await editable.edit("✅Watermark Added Successfully!\n\n🔼Trying to Upload ...")
+	await editable.edit("⌛Trying to Upload With User Account.")
 	width = 100
 	height = 100
 	duration = 0
@@ -274,20 +279,26 @@ async def VidWatermarkAdder(bot, cmd):
 		await editable.edit(f"❗File Size Become {humanbytes(file_size)} !!\nI can't Upload to Telegram!")
 		await delete_all()
 		return
+	if not os.path.isfile(video_thumbnail):
+		video_thumbnail = "thumb.jpg"
+	dw = await USER.send_message(chat_id=cmd.chat.id,
+                                text=f"🔼Uploading Video.")
 	try:
-		await send_video_handler(USER, cmd, output_vid, video_thumbnail, duration, width, height, editable, file_size)
+		await send_video_handler(USER, cmd, output_vid, video_thumbnail, duration, width, height, dw, file_size)
 	except FloodWait as e:
 		print(f"Got FloodWait of {e.x}s ...")
 		await asyncio.sleep(e.x)
 		await asyncio.sleep(5)
-		await send_video_handler(USER, cmd, output_vid, video_thumbnail, duration, width, height, editable, file_size)
+		await send_video_handler(USER, cmd, output_vid, video_thumbnail, duration, width, height, dw, file_size)
 	except Exception as err:
 		print(f"Unable to Upload Video: {err}")
 		await editable.edit(f"❗ERROR: Unable to Upload Video!\n\n**Error:** `{err}`")
 		await delete_all()
+		await dw.delete()
 		return
 	await delete_all()
 	await editable.delete()
+	await dw.delete()
 	return
 
 
