@@ -8,7 +8,7 @@ async def send_video_handler(bot, cmd, output_vid, video_thumbnail, duration, wi
     sent_vid = await bot.send_video(
         chat_id=cmd.chat.id,
         video=output_vid,
-        caption=f"🧬**File Name:** `{output_vid}`\n⏲**Video Duration:** `{format_timespan(duration)}`\n💾**File Size:** `{humanbytes(file_size)}`",
+        caption=f"🧭**Video Duration:** `{format_timespan(duration)}`\n💾**File Size:** `{humanbytes(file_size)}`",
         thumb=video_thumbnail,
         duration=duration,
         width=width,
@@ -17,7 +17,7 @@ async def send_video_handler(bot, cmd, output_vid, video_thumbnail, duration, wi
         supports_streaming=True,
         progress=progress_for_pyrogram,
         progress_args=(
-            "⌛Uploading...",
+            "🔼Uploading...",
             editable,
             c_time
         )

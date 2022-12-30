@@ -3,7 +3,6 @@ import time
 import json
 import random
 import asyncio
-import aiohttp
 from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
 from PIL import Image
@@ -13,110 +12,107 @@ from pyrogram import Client, filters
 from configs import Config
 from core.handlers.main_db_handler import db
 from core.display_progress import progress_for_pyrogram, humanbytes
-from core.handlers.force_sub_handler import handle_force_subscribe
 from core.handlers.upload_video_handler import send_video_handler
-from core.handlers.broadcast_handlers import broadcast_handler
 from pyrogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery
 from pyrogram.errors.exceptions.flood_420 import FloodWait
-from pyrogram.errors.exceptions.bad_request_400 import UserNotParticipant, MessageNotModified
+from pyrogram.errors.exceptions.bad_request_400 import MessageNotModified
 
-AHBot = Client(Config.BOT_USERNAME, bot_token=Config.BOT_TOKEN, api_id=Config.API_ID, api_hash=Config.API_HASH)
-
-
-@AHBot.on_message(filters.command(["start", "help"]) & filters.private)
-async def HelpWatermark(bot, cmd):
-	if not await db.is_user_exist(cmd.from_user.id):
-		await db.add_user(cmd.from_user.id)
-		await bot.send_message(
-			Config.LOG_CHANNEL,
-			f"#NEW_USER: \n\nNew User [{cmd.from_user.first_name}](tg://user?id={cmd.from_user.id}) started @{Config.BOT_USERNAME} !!"
-		)
-	if Config.UPDATES_CHANNEL:
-		fsub = await handle_force_subscribe(bot, cmd)
-		if fsub == 400:
-			return
-	await cmd.reply_text(
-		text=Config.USAGE_WATERMARK_ADDER,
-		parse_mode="Markdown",
-		reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Developer", url="https://t.me/AbirHasan2005"), InlineKeyboardButton("Support Group", url="https://t.me/DevsZone")], [InlineKeyboardButton("Bots Channel", url="https://t.me/Discovery_Updates")], [InlineKeyboardButton("Source Code", url="https://github.com/AbirHasan2005/Watermark-Bot")]]),
-		disable_web_page_preview=True
-	)
+AHBot = Client(
+        name = "WatermarkBOT",
+        session_string = Config.Session_String,
+        api_id = Config.API_ID,
+        api_hash = Config.API_HASH
+    )
 
 
-@AHBot.on_message(filters.command(["reset"]) & filters.private)
+
+
+async def _check_user(filt, c, m):
+    chat_id = m.chat.id
+    if chat_id==Config.GROUP_ID:
+        return True
+    else :
+        return False
+
+check_user = filters.create(_check_user)
+
+
+
+@AHBot.on_message(filters.command(["start", "help"]) & check_user)
+async def HelpWatermark(_, cmd):
+        if not await db.is_user_exist(cmd.from_user.id):
+            await db.add_user(cmd.from_user.id)
+        await cmd.reply_text(
+				text="Hi, I am Video Watermark Adder Bot!\n**How to Added Watermark to a Video?**\n**Usage:** First Send a JPG Image/Logo, then send any Video. Better add watermark to a MP4 or MKV Video.\nNote: I can only process one video at a time. As my server is Heroku, my health is not good. If you have any issues with Adding Watermark to a Video",disable_web_page_preview=True
+			)
+
+
+@AHBot.on_message(filters.command(["reset"])  & check_user)
 async def reset(_, update):
         await db.delete_user(update.from_user.id)
         await db.add_user(update.from_user.id)
         await update.reply_text("Settings reseted successfully")
 
 
-@AHBot.on_message(filters.command("settings") & filters.private)
-async def SettingsBot(bot, cmd):
-	if not await db.is_user_exist(cmd.from_user.id):
-		await db.add_user(cmd.from_user.id)
-		await bot.send_message(
-			Config.LOG_CHANNEL,
-			f"#NEW_USER: \n\nNew User [{cmd.from_user.first_name}](tg://user?id={cmd.from_user.id}) started @{Config.BOT_USERNAME} !!"
-		)
-	if Config.UPDATES_CHANNEL:
-		fsub = await handle_force_subscribe(bot, cmd)
-		if fsub == 400:
-			return
-	## --- Checks --- ##
-	position_tag = None
-	watermark_position = await db.get_position(cmd.from_user.id)
-	if watermark_position == "5:main_h-overlay_h":
-		position_tag = "Bottom Left"
-	elif watermark_position == "main_w-overlay_w-5:main_h-overlay_h-5":
-		position_tag = "Bottom Right"
-	elif watermark_position == "main_w-overlay_w-5:5":
-		position_tag = "Top Right"
-	elif watermark_position == "5:5":
-		position_tag = "Top Left"
+@AHBot.on_message(filters.command("settings")  & check_user)
+async def SettingsBot(_, cmd):
+				if not await db.is_user_exist(cmd.from_user.id):
+					await db.add_user(cmd.from_user.id)
 
-	watermark_size = await db.get_size(cmd.from_user.id)
-	if int(watermark_size) == 5:
-		size_tag = "5%"
-	elif int(watermark_size) == 7:
-		size_tag = "7%"
-	elif int(watermark_size) == 10:
-		size_tag = "10%"
-	elif int(watermark_size) == 15:
-		size_tag = "15%"
-	elif int(watermark_size) == 20:
-		size_tag = "20%"
-	elif int(watermark_size) == 25:
-		size_tag = "25%"
-	elif int(watermark_size) == 30:
-		size_tag = "30%"
-	elif int(watermark_size) == 35:
-		size_tag = "35%"
-	elif int(watermark_size) == 40:
-		size_tag = "40%"
-	elif int(watermark_size) == 45:
-		size_tag = "45%"
-	else:
-		size_tag = "7%"
-	## --- Next --- ##
-	await cmd.reply_text(
-		text="Here you can set your Watermark Settings:",
-		disable_web_page_preview=True,
-		parse_mode="Markdown",
-		reply_markup=InlineKeyboardMarkup(
-			[
-				[InlineKeyboardButton(f"Watermark Position - {position_tag}", callback_data="lol")],
-				[InlineKeyboardButton("Set Top Left", callback_data=f"position_5:5"), InlineKeyboardButton("Set Top Right", callback_data=f"position_main_w-overlay_w-5:5")],
-				[InlineKeyboardButton("Set Bottom Left", callback_data=f"position_5:main_h-overlay_h"), InlineKeyboardButton("Set Bottom Right", callback_data=f"position_main_w-overlay_w-5:main_h-overlay_h-5")],
-				[InlineKeyboardButton(f"Watermark Size - {size_tag}", callback_data="lel")],
-				[InlineKeyboardButton("5%", callback_data=f"size_5"), InlineKeyboardButton("7%", callback_data=f"size_7"), InlineKeyboardButton("10%", callback_data=f"size_10"), InlineKeyboardButton("15%", callback_data=f"size_15"), InlineKeyboardButton("20%", callback_data=f"size_20")],
-				[InlineKeyboardButton("25%", callback_data=f"size_25"), InlineKeyboardButton("30%", callback_data=f"size_30"), InlineKeyboardButton("35%", callback_data=f"size_30"), InlineKeyboardButton("40%", callback_data=f"size_40"), InlineKeyboardButton("45%", callback_data=f"size_45")],
-				[InlineKeyboardButton(f"Reset Settings To Default", callback_data="reset")]
-			]
-		)
-	)
+				## --- Checks --- ##
+				position_tag = None
+				watermark_position = await db.get_position(cmd.from_user.id)
+				if watermark_position == "5:main_h-overlay_h":
+					position_tag = "Bottom Left"
+				elif watermark_position == "main_w-overlay_w-5:main_h-overlay_h-5":
+					position_tag = "Bottom Right"
+				elif watermark_position == "main_w-overlay_w-5:5":
+					position_tag = "Top Right"
+				elif watermark_position == "5:5":
+					position_tag = "Top Left"
+
+				watermark_size = await db.get_size(cmd.from_user.id)
+				if int(watermark_size) == 5:
+					size_tag = "5%"
+				elif int(watermark_size) == 7:
+					size_tag = "7%"
+				elif int(watermark_size) == 10:
+					size_tag = "10%"
+				elif int(watermark_size) == 15:
+					size_tag = "15%"
+				elif int(watermark_size) == 20:
+					size_tag = "20%"
+				elif int(watermark_size) == 25:
+					size_tag = "25%"
+				elif int(watermark_size) == 30:
+					size_tag = "30%"
+				elif int(watermark_size) == 35:
+					size_tag = "35%"
+				elif int(watermark_size) == 40:
+					size_tag = "40%"
+				elif int(watermark_size) == 45:
+					size_tag = "45%"
+				else:
+					size_tag = "7%"
+				## --- Next --- ##
+				await cmd.reply_text(
+					text="Here you can set your Watermark Settings:",
+					disable_web_page_preview=True,
+					reply_markup=InlineKeyboardMarkup(
+						[
+							[InlineKeyboardButton(f"Watermark Position - {position_tag}", callback_data="lol")],
+							[InlineKeyboardButton("Set Top Left", callback_data=f"position_5:5"), InlineKeyboardButton("Set Top Right", callback_data=f"position_main_w-overlay_w-5:5")],
+							[InlineKeyboardButton("Set Bottom Left", callback_data=f"position_5:main_h-overlay_h"), InlineKeyboardButton("Set Bottom Right", callback_data=f"position_main_w-overlay_w-5:main_h-overlay_h-5")],
+							[InlineKeyboardButton(f"Watermark Size - {size_tag}", callback_data="lel")],
+							[InlineKeyboardButton("5%", callback_data=f"size_5"), InlineKeyboardButton("7%", callback_data=f"size_7"), InlineKeyboardButton("10%", callback_data=f"size_10"), InlineKeyboardButton("15%", callback_data=f"size_15"), InlineKeyboardButton("20%", callback_data=f"size_20")],
+							[InlineKeyboardButton("25%", callback_data=f"size_25"), InlineKeyboardButton("30%", callback_data=f"size_30"), InlineKeyboardButton("35%", callback_data=f"size_30"), InlineKeyboardButton("40%", callback_data=f"size_40"), InlineKeyboardButton("45%", callback_data=f"size_45")],
+							[InlineKeyboardButton(f"Reset Settings To Default", callback_data="reset")]
+						]
+					)
+				)
 
 
-@AHBot.on_message((filters.document | filters.video | filters.photo) & filters.private)
+@AHBot.on_message((filters.document | filters.video | filters.photo)  & check_user)
 async def VidWatermarkAdder(bot, cmd):
 	if not await db.is_user_exist(cmd.from_user.id):
 		await db.add_user(cmd.from_user.id)
@@ -284,14 +280,10 @@ async def VidWatermarkAdder(bot, cmd):
 	return
 
 
-@AHBot.on_message(filters.command("cancel") & filters.private)
+@AHBot.on_message(filters.command("cancel")  & check_user)
 async def CancelWatermarkAdder(bot, cmd):
 	if not await db.is_user_exist(cmd.from_user.id):
 		await db.add_user(cmd.from_user.id)
-		await bot.send_message(
-			Config.LOG_CHANNEL,
-			f"#NEW_USER: \n\nNew User [{cmd.from_user.first_name}](tg://user?id={cmd.from_user.id}) started @{Config.BOT_USERNAME} !!"
-		)
 	if not int(cmd.from_user.id) == Config.OWNER_ID:
 		await cmd.reply_text("You Can't Use That Command!")
 		return
@@ -306,7 +298,6 @@ async def CancelWatermarkAdder(bot, cmd):
 			except Exception as err:
 				print(err)
 		await delete_all()
-		await bot.send_message(chat_id=Config.LOG_CHANNEL, text="#WATERMARK_ADDER: Stopped!")
 		await cmd.reply_text("Watermark Adding Process Stopped!")
 		try:
 			await bot.edit_message_text(chat_id=int(statusMsg["chat_id"]), message_id=int(statusMsg["message"]), text="🚦🚦 Last Process Stopped 🚦🚦")
@@ -314,7 +305,7 @@ async def CancelWatermarkAdder(bot, cmd):
 			pass
 
 
-@AHBot.on_message(filters.private & filters.command("status"))
+@AHBot.on_message(filters.command("status") & check_user)
 async def sts(_, m):
 	status = Config.DOWN_PATH + "/WatermarkAdder/status.json"
 	if os.path.exists(status):
@@ -324,50 +315,15 @@ async def sts(_, m):
 	if int(m.from_user.id) == Config.OWNER_ID:
 		total_users = await db.total_users_count()
 		msg_text += f"\n\n**Total Users in DB:** `{total_users}`"
-	await m.reply_text(text=msg_text, parse_mode="Markdown", quote=True)
+	await m.reply_text(text=msg_text, quote=True)
 
 
 @AHBot.on_callback_query()
 async def button(bot, cmd: CallbackQuery):
 	cb_data = cmd.data
 	if "refreshmeh" in cb_data:
-		if Config.UPDATES_CHANNEL:
-			invite_link = await bot.create_chat_invite_link(int(Config.UPDATES_CHANNEL))
-			try:
-				user = await bot.get_chat_member(int(Config.UPDATES_CHANNEL), cmd.message.chat.id)
-				if user.status == "kicked":
-					await cmd.message.edit(
-						text="Sorry Sir, You are Banned to use me. Contact my [Support Group](https://t.me/DevsZone).",
-						parse_mode="markdown",
-						disable_web_page_preview=True
-					)
-					return
-			except UserNotParticipant:
-				await cmd.message.edit(
-					text="**You Still Didn't Join ☹️, Please Join My Updates Channel to use this Bot!**\n\nDue to Overload, Only Channel Subscribers can use the Bot!",
-					reply_markup=InlineKeyboardMarkup(
-						[
-							[
-								InlineKeyboardButton("🤖 Join Updates Channel", url=invite_link.invite_link)
-							],
-							[
-								InlineKeyboardButton("🔄 Refresh 🔄", callback_data="refreshmeh")
-							]
-						]
-					),
-					parse_mode="markdown"
-				)
-				return
-			except Exception:
-				await cmd.message.edit(
-					text="Something went Wrong. Contact my [Support Group](https://t.me/DevsZone).",
-					parse_mode="markdown",
-					disable_web_page_preview=True
-				)
-				return
 		await cmd.message.edit(
-			text=Config.USAGE_WATERMARK_ADDER,
-			parse_mode="Markdown",
+			text="Hi, I am Video Watermark Adder Bot!\n**How to Added Watermark to a Video?**\n**Usage:** First Send a JPG Image/Logo, then send any Video. Better add watermark to a MP4 or MKV Video.\nNote: I can only process one video at a time. As my server is Heroku, my health is not good. If you have any issues with Adding Watermark to a Video",
 			reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Developer", url="https://t.me/AbirHasan2005"), InlineKeyboardButton("Support Group", url="https://t.me/DevsZone")], [InlineKeyboardButton("Bots Channel", url="https://t.me/Discovery_Updates")]]),
 			disable_web_page_preview=True
 		)
@@ -379,41 +335,6 @@ async def button(bot, cmd: CallbackQuery):
 		await cmd.answer("Sir, that button not works XD\n\nPress Bottom Buttons to Set Size of Watermark", show_alert=True)
 
 	elif cb_data.startswith("position_") or cb_data.startswith("size_"):
-		if Config.UPDATES_CHANNEL:
-			invite_link = await bot.create_chat_invite_link(int(Config.UPDATES_CHANNEL))
-			try:
-				user = await bot.get_chat_member(int(Config.UPDATES_CHANNEL), cmd.message.chat.id)
-				if user.status == "kicked":
-					await cmd.message.edit(
-						text="Sorry Sir, You are Banned to use me. Contact my [Support Group](https://t.me/DevsZone).",
-						parse_mode="markdown",
-						disable_web_page_preview=True
-					)
-					return
-			except UserNotParticipant:
-				await cmd.message.edit(
-					text="**You Still Didn't Join ☹️, Please Join My Updates Channel to use this Bot!**\n\nDue to Overload, Only Channel Subscribers can use the Bot!",
-					reply_markup=InlineKeyboardMarkup(
-						[
-							[
-								InlineKeyboardButton("🤖 Join Updates Channel", url=invite_link.invite_link)
-							],
-							[
-								InlineKeyboardButton("🔄 Refresh 🔄", callback_data="refreshmeh")
-							]
-						]
-					),
-					parse_mode="markdown"
-				)
-				return
-			except Exception:
-				await cmd.message.edit(
-					text="Something went Wrong. Contact my [Support Group](https://t.me/DevsZone).",
-					parse_mode="markdown",
-					disable_web_page_preview=True
-				)
-				return
-		await bot.send_message(chat_id=Config.LOG_CHANNEL, text=f"#SETTINGS_SET: [{cmd.from_user.first_name}](tg://user?id={cmd.from_user.id}) Changed Settings!\n\n**User ID:** #id{cmd.from_user.id}\n**Data:** `{cb_data}`", parse_mode="Markdown", disable_web_page_preview=True, reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("Ban User", callback_data=f"ban_{cmd.from_user.id}")]]))
 		new_position = cb_data.split("_", 1)[1]
 		if cb_data.startswith("position_"):
 			await db.set_position(cmd.from_user.id, new_position)
@@ -458,7 +379,6 @@ async def button(bot, cmd: CallbackQuery):
 			await cmd.message.edit(
 				text="Here you can set your Watermark Settings:",
 				disable_web_page_preview=True,
-				parse_mode="Markdown",
 				reply_markup=InlineKeyboardMarkup(
 					[
 						[InlineKeyboardButton(f"Watermark Position - {position_tag}", callback_data="lol")],
@@ -473,17 +393,6 @@ async def button(bot, cmd: CallbackQuery):
 			)
 		except MessageNotModified:
 			pass
-
-	elif cb_data.startswith("ban_"):
-		if Config.UPDATES_CHANNEL is None:
-			await cmd.answer("Sorry Sir, You didn't Set any Updates Channel!", show_alert=True)
-			return
-		try:
-			user_id = cb_data.split("_", 1)[1]
-			await bot.kick_chat_member(chat_id=Config.UPDATES_CHANNEL, user_id=int(user_id))
-			await cmd.answer("User Banned from Updates Channel!", show_alert=True)
-		except Exception as e:
-			await cmd.answer(f"Can't Ban Him!\n\nError: {e}", show_alert=True)
 
 	elif "reset" in cb_data:
 		await db.delete_user(cmd.from_user.id)
